@@ -1,0 +1,33 @@
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest ]
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v2
+
+      - name: Build the container image
+        run: docker build -t build-img ./build/proxmox/
+
+      - name: Create dummy container from image
+        run: docker create --name build-cont build-img
+
+      - name: Copy debs
+        run: docker cp build-cont:/build/proxmox-kernel/debs ./
+
+      - name: Cleanup image and dummy container
+        run: docker rmi -f build-img
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v2
+        if: runner.os == 'Linux'
+        with:
+          name: debs
+          path: ./debs/
